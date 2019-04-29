@@ -1,0 +1,4 @@
+Recibo n inputs:
+	- Creo n arrays de tamaño 2^n, cada uno representando el valor
+	que pueden tomar el input para cada uno de ellos.
+	- El resultado

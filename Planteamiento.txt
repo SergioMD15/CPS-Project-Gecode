@@ -1,0 +1,60 @@
+
+	El array (v) se compone de tripletas de elementos (0 0 0, 1 0 0, -1 2 3, ...) en las
+	que el primer elemento representa el tipo de componente (puerta nor, 0 o input) y,
+	en el caso de que el primer elemento sea -1, los dos siguientes representan los componentes
+	utilizados como input en el componente actual.
+
+
+	Constraints:
+		[X] Los elementos "i" del array "v", tales que  i % 3 == 0 tienen
+		que ser integers entre -1 y n (número de inputs).
+
+		[X] Los elementos del array i tales que i % 3 != 0 tienen
+		que ser integers entre 0 y n (2^d), siendo d la profundidad máxima
+		que se establece inicialmente.
+
+		[X] Los elementos del array i tales que i % 3 == 0 y siendo
+		v[i] != -1, v[i+1] = 0 = v[i+2].
+
+		- Para todos los elementos del array i (>0) tales que i % 3 == 0
+		y siendo v[i] == -1, v[i+1] y v[i+2] tienen que ser 0 o mayores que 1
+		y TODOS diferentes entre si.
+
+		- Para todos los elementos del array i (>0) tales que i % 3 == 0
+		y siendo v[i] == -1, si v[i+1] != 0 y v[i+2] != 0,TODOS diferentes
+		entre sí en el array (Y) v[i+1] < v[i+2].
+
+		- Para cada elemento i del array tal que i % 3 == 0 y siendo
+		v[i] == -1,, para todos los i_k mayores que i, v[i_k+1] y v[i_k+2]
+		serán iguales a 0 o mayores que v[i+2]. --> No sé aún como modelarla.
+
+		- Para todos los elementos del array i (>0) tales que i % 3 == 0
+		y siendo v[i] == -1, v[i+1] y v[i+2] < length(v) --> Redundant
+
+		- La primera tripleta será (-1 2 3). --> No tiene por qué
+
+		- Los dos últimos elementos añadidos al array han de ser mayor o igual
+		que 0 y menor que el número de inputs.
+
+	Solver:
+		value = 0;
+		for(int i = 1; i < num_inputs; i++){
+			if(i % 8/(2^n) == 0){
+				swap(value);
+			}
+			v.append(value)
+		}
+
+		swap(value){
+			value = 0 ? 1: 0;		
+		}
+
+		INICIALMENTE NECESITAREMOS LAS POSIBLES SOLUCIONES Y DOS ARRAYS (UNO CON LA
+		REPRESENTACIÓN DE LOS VALORES DE LOS INPUTS OBTENIDO CON EL ANTERIOR BUCLE FOR,
+		Y OTRO CON UN ARRAY DE 0s DEL TAMAÑO 2^(num_inputs)
+
+		Una vez recibidos los circuitos válidos, se procede a comprobar aquellos que
+		arrojan un resultado correcto con la comprobación con respecto a los inputs.
+
+		Esto se lleva a cabo empezando desde la primera puerta lógica obteniendo el
+		resultado de la operación NOR (esto se lleva a cabo de forma recursiva).
