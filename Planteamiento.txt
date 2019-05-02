@@ -10,8 +10,8 @@
 		que ser integers entre -1 y n (número de inputs).
 
 		[X] Los elementos del array i tales que i % 3 != 0 tienen
-		que ser integers entre 0 y n (2^d), siendo d la profundidad máxima
-		que se establece inicialmente.
+		que ser integers entre 0 y n*(2^d), siendo d la profundidad máxima
+		que se establece inicialmente, y n el número de inputs.
 
 		[X] Los elementos del array i tales que i % 3 == 0 y siendo
 		v[i] != -1, v[i+1] = 0 = v[i+2].
