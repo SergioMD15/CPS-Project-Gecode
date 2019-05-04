@@ -1,3 +1,4 @@
+#include <iostream>
 #include <fstream>
 #include <vector>
 #include <cmath>
@@ -26,11 +27,11 @@ protected:
   VB inputs;
 
 public:
-  Nor(const VI &g) : num_inputs(g.at(0)), depth(4), max_nodes(pow(2, depth + 1)), 
+  Nor(const VI &g) : num_inputs(g[0]), depth(4), max_nodes(pow(2, depth + 1)), 
                       result(*this, num_inputs, -1, max_nodes), inputs(num_inputs + 1 * 2^num_inputs)
   {
     initializeInputs();
-    // First value has to be 1
+    // // First value has to be 1
     rel(*this, result[0] == 1);
     for (int i = 1; i < max_nodes; ++i){
 
@@ -71,7 +72,7 @@ public:
       if(result.size() > 1){
         vector<int> v(max_nodes);
         for(i = 0; i < max_nodes; ++i){
-          v.push_back(i);
+          v[i] = i;
         }
         count(*this, result, v, IRT_EQ, 2);
       }
@@ -93,7 +94,7 @@ public:
   VI norResult(VI left, VI right){
     VI result;
     for(int i = 0; i < left.size(); i++){
-      result.push_back(!(left[i] or right[i]));
+      result[i] = (!(left[i] or right[i]));
     }
     return result;
   }
@@ -148,15 +149,13 @@ public:
 
   void initializeInputs(){
     bool value = false;
-    int permutation = pow(2, num_inputs-1);
+    int permutation = pow(2, num_inputs - 1);
 
     // Initialize with zeros
-    for(int i = 0; i < 2^num_inputs; i++){
-      inputs.push_back(false);
+    for(int i = 0; i < 2^num_inputs+1; i++){
+      inputs.push_back(value);
     }
-
-    inputs.push_back(false);
-		for(int i = 1; i < num_inputs * 2^num_inputs; i++){
+		for(int i = 2^num_inputs + 1; i < num_inputs * 2^num_inputs; i++){
       if(i % permutation == 0){
         value = swap(value);
       }
@@ -170,6 +169,15 @@ public:
   bool swap(int value){
 			return value = false ? true: false;		
 	}
+
+  int count_gates(){
+    int counter = 0;
+    for(int i = 0; i < result.size(); i++){
+      if(result[i].val() == -1)
+        counter++;
+    }
+    return counter;
+  }
 
   Nor(Nor &s) : Space(s)
   {
@@ -185,27 +193,15 @@ public:
     return new Nor(*this);
   }
 
-  int count_gates(){
-    int counter = 0;
-    for(int i = 0; i < result.size(); i++){
-      if(result[i].val() == -1)
-        counter++;
-    }
-    return counter;
-  }
-
   void print(void)
   {
     int nor_gates = count_gates();
     int max_col = 4;
-    for (int u = 0; u < num_inputs; ++u)
-      if (max_col < result[u].val())
-        max_col = result[u].val();
-
-    cout << max_col << endl;
-
-    for (int u = 0; u < num_inputs; ++u)
-      cout << u + 1 << ' ' << result[u].val() << endl;
+    for (int u = 0; u < result.size(); ++u){
+      cout << result[u].val();
+      if (u % max_col == 0)
+        cout << endl;
+    }
   }
 
   // virtual void constraint(const Space &_b)
@@ -228,31 +224,27 @@ int main(int argc, char *argv[])
     if (argc != 2)
       return 1;
     ifstream in(argv[1]);
-    int n, m;
-    in >> n >> m;
-    vector<int> g(n);
-    for (int k = 0; k < m; ++k)
+    int n;
+    in >> n;
+    VI g(pow(2, n));
+    g[0] = n;
+    cout << g[0];
+    int u;
+    for (int k = 0; k < pow(2, n); ++k)
     {
-      int u, v;
-      in >> u >> v;
-      --u;
-      --v;
-      g.push_back(v);
+      in >> u;
       g.push_back(u);
     }
     Nor* mod = new Nor(g);
     BAB<Nor> e(mod);
     delete mod;
-    Nor* sant = e.next();
     Nor* s = e.next();
     while (s != NULL)
     {
-      delete sant;
-      sant = s;
+      s->print();
       s = e.next();
     }
-    sant->print();
-    delete sant;
+    delete s;
   }
   catch (Exception e)
   {
