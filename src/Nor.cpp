@@ -90,8 +90,7 @@ public:
     branch(*this, result, INT_VAR_NONE(), INT_VAL_MIN());
   }
 
-  VI norResult(VI left, VI right) const
-  {
+  VI norResult(VI left, VI right){
     VI result;
     for(int i = 0; i < left.size(); i++){
       result.push_back(!(left[i] or right[i]));
@@ -100,7 +99,9 @@ public:
   }
 
   VI norOperation(IntVarArray list, int index){
-    // 1. Encontrar el index de los inputs
+    // We find the position of the NOR gate inputs'
+    // identifiers (1 -1 2 3  --> Looking where are 2
+    // and 3 in the array).
     int index_first = findIndex(list, index + 2);
     int index_second = findIndex(list, index + 3);
     VI left, right;
