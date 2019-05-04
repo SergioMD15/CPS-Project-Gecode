@@ -16,7 +16,7 @@ class Nor : public Space
 
 private:
   // Number of inputs
-  int n;
+  int num_inputs;
   int depth;
   int max_nodes;
 
@@ -26,7 +26,8 @@ protected:
   VB inputs;
 
 public:
-  Nor(const VI &g) : n(g.at(0)), depth(4), max_nodes(pow(2, depth + 1)), result(*this, n, -1, max_nodes)
+  Nor(const VI &g) : num_inputs(g.at(0)), depth(4), max_nodes(pow(2, depth + 1)), 
+                      result(*this, num_inputs, -1, max_nodes), inputs(num_inputs + 1 * 2^num_inputs)
   {
     initializeInputs();
     // First value has to be 1
@@ -56,6 +57,9 @@ public:
           rel(*this, result[i+1] != result[i+2]);
           // NOR gate inputs' cannot be lower than NOR gate index
           rel(*this, result[i+1] < result[i-1] and result[i+2] < result[i-1]);
+          // The first input of a NOR gate needs to be defined
+          // immediately after the NOR gate.
+          rel(*this, result[i+1] == result[i+3]);
         }
       }
       // At most 2^(depth) - 1 NOR gates in the circuit.
@@ -69,48 +73,106 @@ public:
         for(i = 0; i < max_nodes; ++i){
           v.push_back(i);
         }
-        count(*this, result, v, IRT_GQ, 2);
+        count(*this, result, v, IRT_EQ, 2);
       }
 
-      // The final size of the array has to be odd.
-      rel(*this, fmod(result.size(), 2));
     }
+    // The total number of elements needs to be odd.
+    // and also multiple of 4
+    rel(*this, result.size() % 4 == 0);
+    rel(*this, (result.size() / 4) % 2 != 0);
+
+    VI nor_res = norOperation(result, 0);
+    for(int i = 0; i < g.size(); i++){
+      rel(*this, nor_res[i] == g[i]);
+    }
+
     branch(*this, result, INT_VAR_NONE(), INT_VAL_MIN());
   }
 
-  // IntVarArray nor_result(BoolVarArray left, BoolVarArray right) const
-  // {
-  //   return q[i * n + j];
-  // }
+  VI norResult(VI left, VI right) const
+  {
+    VI result;
+    for(int i = 0; i < left.size(); i++){
+      result.push_back(!(left[i] or right[i]));
+    }
+    return result;
+  }
 
-  int generator()
-  { 
-    static int i = 1;
-    return i++;
+  VI norOperation(IntVarArray list, int index){
+    // 1. Encontrar el index de los inputs
+    int index_first = findIndex(list, index + 2);
+    int index_second = findIndex(list, index + 3);
+    VI left, right;
+    
+    // Get the inputs for the left part. If it
+    // is a NOR gate, we iterate again until
+    // getting a valid input.
+    if(list[index_first + 1].val() != -1){
+      left = getInputs(index_first + 1);
+    } else{
+      left = norOperation(list, index_first);
+    }
+
+    // Same as before with the right side.
+    if(list[index_second + 1].val() != -1){
+      right = getInputs(index_first + 1);
+    } else{
+      right = norOperation(list, index_first);
+    }
+    return norResult(left, right);
+  }
+
+  /**
+  * Given an index returns a list with the values corresponding
+  * to that input.
+  */
+  VI getInputs(int index){
+    VI copy(pow(2, num_inputs));
+    for(int i = index * pow(2, num_inputs); i < (index + 1) * pow(2, num_inputs); i++){
+      copy.push_back(inputs[i]);
+    }
+    return copy;
+  }
+
+  int findIndex(IntVarArray list, int index){
+    // We have the value for the result
+    // and we want to find the index
+    for(int i = 1; i < list.size(); i++){
+      if((i - 1) % 4 == 0 && list[i].val() == index){
+        return i;
+      }
+    }
   }
 
   void initializeInputs(){
-    int value = 0;
-    int permutation = pow(2, n-1);
+    bool value = false;
+    int permutation = pow(2, num_inputs-1);
+
+    // Initialize with zeros
+    for(int i = 0; i < 2^num_inputs; i++){
+      inputs.push_back(false);
+    }
+
     inputs.push_back(false);
-		for(int i = 1; i < n * 2^n; i++){
+		for(int i = 1; i < num_inputs * 2^num_inputs; i++){
       if(i % permutation == 0){
         value = swap(value);
       }
-			if(i % (2^n) == 0){
+			if(i % int(pow(2, num_inputs)) == 0){
         permutation /= 2;
 			}
 			inputs.push_back(value);
 		}
   }
 
-  int swap(int value){
-			return value = 0 ? 1: 0;		
+  bool swap(int value){
+			return value = false ? true: false;		
 	}
 
   Nor(Nor &s) : Space(s)
   {
-    n = s.n;
+    num_inputs = s.num_inputs;
     depth = s.depth;
     max_nodes = s.max_nodes;
     inputs = s.inputs;
@@ -135,13 +197,13 @@ public:
   {
     int nor_gates = count_gates();
     int max_col = 4;
-    for (int u = 0; u < n; ++u)
+    for (int u = 0; u < num_inputs; ++u)
       if (max_col < result[u].val())
         max_col = result[u].val();
 
     cout << max_col << endl;
 
-    for (int u = 0; u < n; ++u)
+    for (int u = 0; u < num_inputs; ++u)
       cout << u + 1 << ' ' << result[u].val() << endl;
   }
 
@@ -149,11 +211,11 @@ public:
   // {
   //   const Nor &b = static_cast<const Nor &>(_b);
   //   int max_col = -1;
-  //   for (int u = 0; u < n; ++u)
+  //   for (int u = 0; u < num_inputs; ++u)
   //     if (max_col < b.result[u].val())
   //       max_col = b.result[u].val();
 
-  //   for (int u = 0; u < n; ++u)
+  //   for (int u = 0; u < num_inputs; ++u)
   //     rel(*this, result[u] < max_col);
   // }
 };
