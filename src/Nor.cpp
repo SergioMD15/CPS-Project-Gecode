@@ -27,11 +27,11 @@ protected:
   VB inputs;
 
 public:
-  Nor(const VI &g) : num_inputs(g[0]), depth(4), max_nodes(pow(2, depth + 1)), 
+  Nor(const VI &g, const int n) : num_inputs(n), depth(2), max_nodes(pow(2, depth + 1)), 
                       result(*this, num_inputs, -1, max_nodes), inputs(num_inputs + 1 * 2^num_inputs)
   {
     initializeInputs();
-    // // First value has to be 1
+    // First value has to be 1
     rel(*this, result[0] == 1);
     for (int i = 1; i < max_nodes; ++i){
 
@@ -41,16 +41,16 @@ public:
         rel(*this, result[i-1] > 0);
         // The elements indicating the type of the node has to be
         // either -1 or greater than 0
-        rel(*this, result[i] == -1 or result[i] > 0);
+        rel(*this, result[i] == -1 or result[i] >= 0);
         
         // CONSTRAINTS FOR THE INPUTS
-        if(result[i].val() >= 0){
+        if(result[i].val() > 0){
           // Inputs or zero values cannot have inputs
-          rel(*this, result[i+1] == 0 and result[i+2] == 0);
+          rel(*this, result[i] > 0 and result[i+1] == 0 and result[i+2] == 0);
 
         // CONSTRAINTS FOR THE NOR GATES
         } else if(result[i].val() == -1){
-          // The NOR gates need inputs
+          // The NOR gates need inputs greater than 1
           rel(*this, result[i+1] > 1 and result[i+2] > 1);
           // The NOR gates' inputs need to be lower than max_nodes
           rel(*this, result[i+1] < max_nodes and result[i+2] < max_nodes);
@@ -63,29 +63,32 @@ public:
           rel(*this, result[i+1] == result[i+3]);
         }
       }
-      // At most 2^(depth) - 1 NOR gates in the circuit.
-      count(*this, result, -1, IRT_LQ, pow(2, depth) - 1);
-      
-      // If the array size is greater than 1, every value greater than 1 needs
-      // to appear twice in the solution array (once when it is used as input
-      // and another one when it is defined).
-      if(result.size() > 1){
-        vector<int> v(max_nodes);
-        for(i = 0; i < max_nodes; ++i){
-          v[i] = i;
-        }
-        count(*this, result, v, IRT_EQ, 2);
-      }
+    }
 
+    // At most 2^(depth) - 1 NOR gates in the circuit.
+      count(*this, result, -1, IRT_LQ, pow(2, depth) - 1);
+
+    // If the array size is greater than 1, every value greater than 1 needs
+    // to appear twice in the solution array (once when it is used as input
+    // and another one when it is defined).
+    if(result.size() > 1){
+      for(int i = 2; i < max_nodes + 1; ++i){
+        count(*this, result, i, IRT_EQ, 2);
+      }
     }
     // The total number of elements needs to be odd.
     // and also multiple of 4
-    rel(*this, result.size() % 4 == 0);
-    rel(*this, (result.size() / 4) % 2 != 0);
+    IntVar e = expr(*this, result.size());
+    rel(*this, e % 4 == 0);
+    rel(*this, (e / 4) % 2 != 0);
 
+
+    // Main constraint to check the NOR behavior
     VI nor_res = norOperation(result, 0);
     for(int i = 0; i < g.size(); i++){
-      rel(*this, nor_res[i] == g[i]);
+      IntVar res = expr(*this, nor_res[i]);
+      IntVar original = expr(*this, g[i]);
+      rel(*this, res == original);
     }
 
     branch(*this, result, INT_VAR_NONE(), INT_VAL_MIN());
@@ -132,7 +135,7 @@ public:
   VI getInputs(int index){
     VI copy(pow(2, num_inputs));
     for(int i = index * pow(2, num_inputs); i < (index + 1) * pow(2, num_inputs); i++){
-      copy.push_back(inputs[i]);
+      copy[i] = inputs[i];
     }
     return copy;
   }
@@ -147,28 +150,52 @@ public:
     }
   }
 
-  void initializeInputs(){
-    bool value = false;
-    int permutation = pow(2, num_inputs - 1);
+  // void initializeInputs(){
+  //   bool value = false;
+  //   int permutation = pow(2, num_inputs - 1);
 
-    // Initialize with zeros
-    for(int i = 0; i < 2^num_inputs+1; i++){
-      inputs.push_back(value);
+  //   // Initialize with zeros
+  //   for(int i = 0; i < 2^num_inputs+1; i++){
+  //     inputs[i] = value;
+  //   }
+	// 	for(int i = 2^num_inputs + 1; i < num_inputs * 2^num_inputs; i++){
+  //     if(i % permutation == 0){
+  //       value = swap(value);
+  //     }
+	// 		if(i % int(pow(2, num_inputs)) == 0){
+  //       permutation /= 2;
+	// 		}
+	// 		inputs[i] = value;
+	// 	}
+  // }
+
+  void initializeInputs(){
+  int value = 0;
+  int size = (num_inputs + 1) * (pow(2,num_inputs));
+  vector<int> inputs(size);
+  int permutation = pow (2, num_inputs-1);
+
+  // Initialize with zeros
+  for (int i = 0; i < (2 ^ num_inputs) + 1; i++){
+      inputs[i] = value;
+  }
+  for (int i = 2 ^ num_inputs + 1; i < size; i++){
+    if (i % permutation == 0){
+	    if(value == 0)
+	        value = 1;
+	    else
+	        value = 0;
+	  }
+    if (i % int (pow (2, num_inputs)) == 0 and i != pow(2,num_inputs)){
+	    permutation /= 2;
+	  }
+      inputs[i] = value;
     }
-		for(int i = 2^num_inputs + 1; i < num_inputs * 2^num_inputs; i++){
-      if(i % permutation == 0){
-        value = swap(value);
-      }
-			if(i % int(pow(2, num_inputs)) == 0){
-        permutation /= 2;
-			}
-			inputs.push_back(value);
-		}
   }
 
-  bool swap(int value){
-			return value = false ? true: false;		
-	}
+  // bool swap(int value){
+	// 		return value = false ? true: false;		
+	// }
 
   int count_gates(){
     int counter = 0;
@@ -227,24 +254,22 @@ int main(int argc, char *argv[])
     int n;
     in >> n;
     VI g(pow(2, n));
-    g[0] = n;
-    cout << g[0];
     int u;
     for (int k = 0; k < pow(2, n); ++k)
     {
       in >> u;
-      g.push_back(u);
+      g[k] = u;
     }
-    Nor* mod = new Nor(g);
-    BAB<Nor> e(mod);
-    delete mod;
-    Nor* s = e.next();
-    while (s != NULL)
-    {
-      s->print();
-      s = e.next();
-    }
-    delete s;
+    Nor* mod = new Nor(g, n);
+    // BAB<Nor> e(mod);
+    // delete mod;
+    // Nor* s = e.next();
+    // while (s != NULL)
+    // {
+    //   s->print();
+    //   s = e.next();
+    // }
+    // delete s;
   }
   catch (Exception e)
   {
