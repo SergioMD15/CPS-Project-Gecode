@@ -20,6 +20,7 @@ private:
   int num_inputs;
   int depth;
   int max_nodes;
+  int max_nors;
 
 protected:
   // Type of each element starting from the bottom
@@ -27,8 +28,8 @@ protected:
   VB inputs;
 
 public:
-  Nor(const VI &g, const int n) : num_inputs(n), depth(2), max_nodes(pow(2, depth + 1)), 
-                      result(*this, num_inputs, -1, max_nodes), inputs(num_inputs + 1 * 2^num_inputs)
+  Nor(const VI &g, const int n) : num_inputs(n), depth(1), max_nodes(pow(2, depth + 1)-1), max_nors(pow(2, depth) - 1),
+                      result(*this, 4*max_nodes, -1, max_nodes), inputs((num_inputs + 1) * pow(2, num_inputs))
   {
     initializeInputs();
     // First value has to be 1
@@ -36,70 +37,78 @@ public:
     for (int i = 1; i < max_nodes; ++i){
 
       // CONSTRAINTS FOR THE ELEMENTS
+      rel(*this, result[i] < max_nodes and result[i] >= -1);
+      if(i % 4 == 0){
+        rel(*this, result[i] != result[i-4]);
+        rel(*this, result[i] > 1);
+      }
       if((i - 1) % 4 == 0){
         // The elements index has to be positive
-        rel(*this, result[i-1] > 0);
+        rel(*this, result[i] >= -1);
         // The elements indicating the type of the node has to be
         // either -1 or greater than 0
-        rel(*this, result[i] == -1 or result[i] >= 0);
+        rel(*this, (result[i+1] != result[i+2]
+                and (result[i+2] > 1 and result[i+1] > 1 and result[i+1] < result[i+2]))
+                or (result[i+1] == 0 and result[i+2] == 0));
         
         // CONSTRAINTS FOR THE INPUTS
-        if(result[i].val() > 0){
-          // Inputs or zero values cannot have inputs
-          rel(*this, result[i] > 0 and result[i+1] == 0 and result[i+2] == 0);
+        // if(result[i].val() != -1){
+          // // Inputs or zero values cannot have inputs
+          // rel(*this, result[i+1] == 0 and result[i+2] == 0);
 
-        // CONSTRAINTS FOR THE NOR GATES
-        } else if(result[i].val() == -1){
-          // The NOR gates need inputs greater than 1
-          rel(*this, result[i+1] > 1 and result[i+2] > 1);
-          // The NOR gates' inputs need to be lower than max_nodes
-          rel(*this, result[i+1] < max_nodes and result[i+2] < max_nodes);
-          // NOR gate inputs' cannot be the same
-          rel(*this, result[i+1] != result[i+2]);
-          // NOR gate inputs' cannot be lower than NOR gate index
-          rel(*this, result[i+1] < result[i-1] and result[i+2] < result[i-1]);
-          // The first input of a NOR gate needs to be defined
-          // immediately after the NOR gate.
-          rel(*this, result[i+1] == result[i+3]);
-        }
+        // // CONSTRAINTS FOR THE NOR GATES
+        // } else{
+        //   // The NOR gates need inputs greater than 1
+        //   rel(*this, result[i+1] > 1 and result[i+2] > 1);
+        //   // The NOR gates' inputs need to be lower than max_nodes
+        //   rel(*this, result[i+1] < max_nodes and result[i+2] < max_nodes);
+        //   // NOR gate inputs' cannot be the same
+        //   rel(*this, result[i+1] != result[i+2]);
+        //   // NOR gate inputs' cannot be lower than NOR gate index
+        //   rel(*this, result[i+1] > result[i-1] and result[i+2] > result[i-1]);
+        //   // The first input of a NOR gate needs to be defined
+        //   // immediately after the NOR gate.
+        //   rel(*this, result[i+1] == result[i+3]);
+        // }
       }
     }
 
     // At most 2^(depth) - 1 NOR gates in the circuit.
-      count(*this, result, -1, IRT_LQ, pow(2, depth) - 1);
+    count(*this, result, -1, IRT_LQ, max_nors);
 
     // If the array size is greater than 1, every value greater than 1 needs
     // to appear twice in the solution array (once when it is used as input
     // and another one when it is defined).
-    if(result.size() > 1){
-      for(int i = 2; i < max_nodes + 1; ++i){
-        count(*this, result, i, IRT_EQ, 2);
-      }
-    }
-    // The total number of elements needs to be odd.
-    // and also multiple of 4
-    IntVar e = expr(*this, result.size());
-    rel(*this, e % 4 == 0);
-    rel(*this, (e / 4) % 2 != 0);
+    // if(result.size() > 1){
+      // for(int i = 2; i < max_nodes + 1; ++i){
+      //   if(i%4 == 0)
+      //     count(*this, result, i, IRT_EQ, 1);
+      // }
+    // }
+    // // The total number of elements needs to be odd.
+    // // and also multiple of 4
+    // IntVar e = expr(*this, result.size());
+    // rel(*this, e % 4 == 0);
+    // rel(*this, (e / 4) % 2 != 0);
 
 
     // Main constraint to check the NOR behavior
-    VI nor_res = norOperation(result, 0);
-    for(int i = 0; i < g.size(); i++){
-      IntVar res = expr(*this, nor_res[i]);
-      IntVar original = expr(*this, g[i]);
-      rel(*this, res == original);
-    }
+    // VI nor_res = norOperation(result, 0);
+    // for(int i = 0; i < g.size(); i++){
+    //   IntVar res = expr(*this, nor_res[i]);
+    //   IntVar original = expr(*this, g[i]);
+    //   rel(*this, res == original);
+    // }
 
     branch(*this, result, INT_VAR_NONE(), INT_VAL_MIN());
   }
 
   VI norResult(VI left, VI right){
-    VI result;
+    VI result_nor;
     for(int i = 0; i < left.size(); i++){
-      result[i] = (!(left[i] or right[i]));
+      result_nor[i] = (!(left[i] or right[i]));
     }
-    return result;
+    return result_nor;
   }
 
   VI norOperation(IntVarArray list, int index){
@@ -226,9 +235,11 @@ public:
     int max_col = 4;
     for (int u = 0; u < result.size(); ++u){
       cout << result[u].val();
-      if (u % max_col == 0)
+      cout << ' ';
+      if (((u + 1) % max_col == 0) and u != 0)
         cout << endl;
     }
+    cout << endl;
   }
 
   // virtual void constraint(const Space &_b)
@@ -261,15 +272,16 @@ int main(int argc, char *argv[])
       g[k] = u;
     }
     Nor* mod = new Nor(g, n);
-    // BAB<Nor> e(mod);
-    // delete mod;
-    // Nor* s = e.next();
-    // while (s != NULL)
-    // {
-    //   s->print();
-    //   s = e.next();
-    // }
-    // delete s;
+    BAB<Nor> e(mod);
+    delete mod;
+    Nor* s = e.next();
+    while (s != NULL)
+    {
+      cin.ignore();
+      s->print();
+      s = e.next();
+    }
+    delete s;
   }
   catch (Exception e)
   {
