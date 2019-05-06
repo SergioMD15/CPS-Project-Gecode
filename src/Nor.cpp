@@ -259,9 +259,9 @@ int main(int argc, char *argv[])
 {
   try
   {
-    if (argc != 2)
-      return 1;
-    ifstream in(argv[1]);
+    string file;
+    cin >> file;
+    ifstream in(file);
     int n;
     in >> n;
     VI g(pow(2, n));
@@ -277,7 +277,6 @@ int main(int argc, char *argv[])
     Nor* s = e.next();
     while (s != NULL)
     {
-      cin.ignore();
       s->print();
       s = e.next();
     }
