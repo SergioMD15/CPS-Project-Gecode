@@ -16,10 +16,12 @@ class Nor : public Space
 {
 
 private:
-  // Number of inputs
+
   int num_inputs;
   int depth;
   int max_nodes;
+  int max_nors;
+
 
 protected:
   // Type of each element starting from the bottom
@@ -27,8 +29,8 @@ protected:
   VB inputs;
 
 public:
-  Nor(const VI &g, const int n) : num_inputs(n), depth(2), max_nodes(pow(2, depth + 1)), 
-                      result(*this, num_inputs, -1, max_nodes), inputs(num_inputs + 1 * 2^num_inputs)
+  Nor(const VI &g, const int n) : num_inputs(n), depth(1), max_nodes(pow(2, depth + 1)-1), max_nors(pow(2, depth) - 1),
+                      result(*this, 4*max_nodes, -1, max_nodes), inputs((num_inputs + 1) * pow(2, num_inputs))
   {
     initializeInputs();
     // First value has to be 1
@@ -66,7 +68,7 @@ public:
     }
 
     // At most 2^(depth) - 1 NOR gates in the circuit.
-      count(*this, result, -1, IRT_LQ, pow(2, depth) - 1);
+      count(*this, result, -1, IRT_LQ, max_nors);
 
     // If the array size is greater than 1, every value greater than 1 needs
     // to appear twice in the solution array (once when it is used as input
@@ -150,25 +152,6 @@ public:
     }
   }
 
-  // void initializeInputs(){
-  //   bool value = false;
-  //   int permutation = pow(2, num_inputs - 1);
-
-  //   // Initialize with zeros
-  //   for(int i = 0; i < 2^num_inputs+1; i++){
-  //     inputs[i] = value;
-  //   }
-	// 	for(int i = 2^num_inputs + 1; i < num_inputs * 2^num_inputs; i++){
-  //     if(i % permutation == 0){
-  //       value = swap(value);
-  //     }
-	// 		if(i % int(pow(2, num_inputs)) == 0){
-  //       permutation /= 2;
-	// 		}
-	// 		inputs[i] = value;
-	// 	}
-  // }
-
   void initializeInputs(){
   int value = 0;
   int size = (num_inputs + 1) * (pow(2,num_inputs));
@@ -192,10 +175,6 @@ public:
       inputs[i] = value;
     }
   }
-
-  // bool swap(int value){
-	// 		return value = false ? true: false;		
-	// }
 
   int count_gates(){
     int counter = 0;
@@ -230,27 +209,15 @@ public:
         cout << endl;
     }
   }
-
-  // virtual void constraint(const Space &_b)
-  // {
-  //   const Nor &b = static_cast<const Nor &>(_b);
-  //   int max_col = -1;
-  //   for (int u = 0; u < num_inputs; ++u)
-  //     if (max_col < b.result[u].val())
-  //       max_col = b.result[u].val();
-
-  //   for (int u = 0; u < num_inputs; ++u)
-  //     rel(*this, result[u] < max_col);
-  // }
 };
 
 int main(int argc, char *argv[])
 {
   try
   {
-    if (argc != 2)
-      return 1;
-    ifstream in(argv[1]);
+    string file;
+    cin >> file;
+    ifstream in(file);
     int n;
     in >> n;
     VI g(pow(2, n));
@@ -261,15 +228,15 @@ int main(int argc, char *argv[])
       g[k] = u;
     }
     Nor* mod = new Nor(g, n);
-    // BAB<Nor> e(mod);
-    // delete mod;
-    // Nor* s = e.next();
-    // while (s != NULL)
-    // {
-    //   s->print();
-    //   s = e.next();
-    // }
-    // delete s;
+    BAB<Nor> e(mod);
+    delete mod;
+    Nor* s = e.next();
+    while (s != NULL)
+    {
+      s->print();
+      s = e.next();
+    }
+    delete s;
   }
   catch (Exception e)
   {
