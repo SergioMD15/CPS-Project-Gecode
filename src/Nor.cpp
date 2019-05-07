@@ -29,12 +29,19 @@ protected:
   VB inputs;
 
 public:
-  Nor(const VI &g, const int n) : num_inputs(n), depth(1), max_nodes(pow(2, depth + 1)-1), max_nors(pow(2, depth) - 1),
-                      result(*this, 4*max_nodes, -1, max_nodes), inputs((num_inputs + 1) * pow(2, num_inputs))
+  Nor(const VI &g, const int n, const int _depth) : num_inputs(n), depth(_depth), max_nodes(pow(2, depth + 1) - 1)
+                                            , max_nors(pow(2, depth) - 1), result(*this, 4*max_nodes, -1, max_nodes)
+                                            , inputs((num_inputs + 1) * pow(2, num_inputs))
   {
     initializeInputs();
     // First value has to be 1
     rel(*this, result[0] == 1);
+    
+    // The leaves cannot be gates
+    for(int i = 4*max_nors; i < max_nodes; ++i) {
+      if((i - 1) % 4 == 0)
+        rel(*this, result[i+1] != -1);
+    }
     for (int i = 1; i < max_nodes; ++i){
 
       // CONSTRAINTS FOR THE ELEMENTS
@@ -222,21 +229,25 @@ int main(int argc, char *argv[])
     in >> n;
     VI g(pow(2, n));
     int u;
+    const int max_depth = 4;
     for (int k = 0; k < pow(2, n); ++k)
     {
       in >> u;
       g[k] = u;
     }
-    Nor* mod = new Nor(g, n);
-    BAB<Nor> e(mod);
-    delete mod;
-    Nor* s = e.next();
-    while (s != NULL)
-    {
-      s->print();
-      s = e.next();
+    for(int j = 0;j < max_depth; j ++){
+      cout << 'Looking for solution with depth ' << j << endl;
+      Nor* mod = new Nor(g, n, j);
+      BAB<Nor> e(mod);
+      delete mod;
+      Nor* s = e.next();
+      while (s != NULL)
+      {
+        s->print();
+        s = e.next();
+      }
+      delete s;
     }
-    delete s;
   }
   catch (Exception e)
   {
